@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Target environment
+        description: デプロイ先環境
         type: choice
         required: true
         options:
@@ -12,7 +12,7 @@ on:
           - poc-stage
           - poc-prod
       memo:
-        description: Note (worker / period, optional)
+        description: メモ (作業者・作業予定期間など、任意)
         type: string
         required: false
         default: ""
