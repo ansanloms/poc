@@ -42,6 +42,13 @@ for (const env of envs) {
     logUrl = statuses[0].log_url || '';
     envUrl = statuses[0].environment_url || '';
   }
+  let commentCount = 0;
+  try {
+    const comments = await gh(`/repos/${repo}/commits/${dep.sha}/comments?per_page=100`);
+    commentCount = Array.isArray(comments) ? comments.length : 0;
+  } catch {
+    commentCount = 0;
+  }
   rows.push({
     env,
     deployed: true,
@@ -52,6 +59,7 @@ for (const env of envs) {
     state,
     logUrl,
     envUrl,
+    commentCount,
   });
 }
 
@@ -65,9 +73,10 @@ const tbody = rows.map((r) => (r.deployed
       <td>${esc(r.creator)}</td>
       <td>${esc(r.createdAt)}</td>
       <td><span class="badge">${esc(r.state)}</span></td>
+      <td>${esc(r.commentCount)}</td>
       <td>${r.logUrl ? `<a href="${esc(r.logUrl)}">run</a>` : ''}</td>
     </tr>`
-  : `<tr class="s-none"><td>${esc(r.env)}</td><td colspan="6">no deployment yet</td></tr>`)).join('\n');
+  : `<tr class="s-none"><td>${esc(r.env)}</td><td colspan="7">no deployment yet</td></tr>`)).join('\n');
 
 const html = `<!doctype html>
 <html lang="ja">
@@ -93,7 +102,7 @@ const html = `<!doctype html>
 <h1>deploy status</h1>
 <p class="muted">generated at ${esc(generatedAt)} / source: ${esc(repo)}</p>
 <table>
-<thead><tr><th>environment</th><th>branch (ref)</th><th>sha</th><th>by</th><th>at</th><th>state</th><th>log</th></tr></thead>
+<thead><tr><th>environment</th><th>branch (ref)</th><th>sha</th><th>by</th><th>at</th><th>state</th><th>commit comments</th><th>log</th></tr></thead>
 <tbody>
 ${tbody}
 </tbody>
