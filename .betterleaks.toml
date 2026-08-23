@@ -1,0 +1,7 @@
+# betterleaks configuration.
+#
+# `useDefault = true` is load-bearing: it pulls in the built-in default rules.
+# Without it (or with a misspelled key) betterleaks loads zero rules and
+# reports "no leaks found" for everything. Keep it when adding allowlists.
+[extend]
+useDefault = true
