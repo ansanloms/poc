@@ -1,0 +1,37 @@
+name: oidc-claims
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to request the token from (empty = no environment)
+        type: choice
+        required: true
+        default: poc-dev
+        options:
+          - poc-dev
+          - poc-stage
+          - poc-prod
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  show-claims:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    steps:
+      - name: Request an OIDC token and print selected claims (never the token itself)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+            const picked = {};
+            for (const k of ['iss', 'aud', 'sub', 'repository', 'ref', 'ref_type', 'environment', 'workflow_ref', 'job_workflow_ref', 'event_name', 'actor']) {
+              picked[k] = payload[k];
+            }
+            core.info(JSON.stringify(picked, null, 2));
+            await core.summary.addHeading('OIDC token claims').addCodeBlock(JSON.stringify(picked, null, 2), 'json').write();
