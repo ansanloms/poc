@@ -11,6 +11,11 @@ on:
           - poc-dev
           - poc-stage
           - poc-prod
+      memo:
+        description: Note (worker / period, optional)
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -57,6 +62,7 @@ jobs:
           SHA: ${{ github.sha }}
           ACTOR: ${{ github.actor }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          MEMO: ${{ inputs.memo }}
         run: |
           {
             echo "environment=${SHORT}"
@@ -65,6 +71,7 @@ jobs:
             echo "actor=${ACTOR}"
             echo "run_url=${RUN_URL}"
             echo "deployed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "memo=${MEMO}"
           } > deployed.txt
           cat deployed.txt
 
