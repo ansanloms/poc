@@ -25,6 +25,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch git notes
+        run: git fetch origin "refs/notes/*:refs/notes/*" || true
 
       - name: Generate the status page
         env:

@@ -18,7 +18,7 @@ on:
         default: ""
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -33,6 +33,9 @@ jobs:
     env:
       AWS_REGION: ap-northeast-1
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Resolve role and prefix from the environment name
         id: vars
         env:
@@ -80,6 +83,21 @@ jobs:
           BUCKET: ${{ steps.vars.outputs.bucket }}
           SHORT: ${{ steps.vars.outputs.short }}
         run: aws s3 cp deployed.txt "s3://${BUCKET}/${SHORT}/deployed.txt"
+
+      - name: Record memo as a git note
+        env:
+          SHORT: ${{ steps.vars.outputs.short }}
+          SHA: ${{ github.sha }}
+          MEMO: ${{ inputs.memo }}
+        run: |
+          set -euo pipefail
+          notes_ref="deploy-${SHORT}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          payload="$(MEMO="$MEMO" node -e 'process.stdout.write(JSON.stringify({memo: process.env.MEMO || ""}))')"
+          git notes --ref="$notes_ref" add -f -m "$payload" "$SHA"
+          git notes --ref="$notes_ref" show "$SHA"
+          git push -f origin "refs/notes/${notes_ref}"
 
       - name: Write summary
         env:
