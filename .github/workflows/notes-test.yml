@@ -1,0 +1,73 @@
+name: notes-test
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment (used as the notes ref suffix)
+        type: choice
+        required: true
+        default: poc-dev
+        options:
+          - poc-dev
+          - poc-stage
+          - poc-prod
+      memo:
+        description: Memo to store in the git note
+        type: string
+        required: false
+        default: "sample memo"
+
+permissions:
+  contents: write
+
+jobs:
+  write-note:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.note.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add a git note and push it
+        id: note
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          MEMO: ${{ inputs.memo }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euxo pipefail
+          notes_ref="refs/notes/deploy-${ENVIRONMENT}"
+          sha="$(git rev-parse HEAD)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          payload="$(printf '{"env":"%s","sha":"%s","actor":"%s","memo":"%s"}' "$ENVIRONMENT" "$sha" "$ACTOR" "$MEMO")"
+          # overwrite any existing note for this ref on HEAD
+          git notes --ref="deploy-${ENVIRONMENT}" add -f -m "$payload" "$sha"
+          echo "local note content:"
+          git notes --ref="deploy-${ENVIRONMENT}" show "$sha"
+          git push origin "${notes_ref}"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "pushed ${notes_ref} for ${sha}"
+
+  read-note:
+    needs: write-note
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (fresh clone, no notes by default)
+        uses: actions/checkout@v4
+
+      - name: Fetch the notes ref and read it back
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          SHA: ${{ needs.write-note.outputs.sha }}
+        run: |
+          set -euxo pipefail
+          notes_ref="refs/notes/deploy-${ENVIRONMENT}"
+          echo "notes refs on the remote before fetch:"
+          git ls-remote origin "refs/notes/*" || true
+          git fetch origin "${notes_ref}:${notes_ref}"
+          echo "=== note content read back for ${SHA} ==="
+          git notes --ref="deploy-${ENVIRONMENT}" show "${SHA}"
+          echo "=== end note content ==="
