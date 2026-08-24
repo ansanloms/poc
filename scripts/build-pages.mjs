@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 
 const repo = process.env.REPO;
 const token = process.env.GH_TOKEN;
@@ -23,6 +24,26 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
+}
+
+function readMemo(env, shaFull) {
+  if (!shaFull) return '';
+  const short = env.replace(/^poc-/, '');
+  try {
+    const raw = execFileSync('git', ['notes', `--ref=deploy-${short}`, 'show', shaFull], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (!raw) return '';
+    try {
+      const parsed = JSON.parse(raw);
+      return typeof parsed.memo === 'string' ? parsed.memo : raw;
+    } catch {
+      return raw;
+    }
+  } catch {
+    return '';
+  }
 }
 
 const rows = [];
@@ -52,6 +73,7 @@ for (const env of envs) {
     state,
     logUrl,
     envUrl,
+    memo: readMemo(env, dep.sha),
   });
 }
 
@@ -65,9 +87,10 @@ const tbody = rows.map((r) => (r.deployed
       <td>${esc(r.creator)}</td>
       <td>${esc(r.createdAt)}</td>
       <td><span class="badge">${esc(r.state)}</span></td>
+      <td>${esc(r.memo)}</td>
       <td>${r.logUrl ? `<a href="${esc(r.logUrl)}">run</a>` : ''}</td>
     </tr>`
-  : `<tr class="s-none"><td>${esc(r.env)}</td><td colspan="6">no deployment yet</td></tr>`)).join('\n');
+  : `<tr class="s-none"><td>${esc(r.env)}</td><td colspan="7">no deployment yet</td></tr>`)).join('\n');
 
 const html = `<!doctype html>
 <html lang="ja">
@@ -93,7 +116,7 @@ const html = `<!doctype html>
 <h1>deploy status</h1>
 <p class="muted">generated at ${esc(generatedAt)} / source: ${esc(repo)}</p>
 <table>
-<thead><tr><th>environment</th><th>branch (ref)</th><th>sha</th><th>by</th><th>at</th><th>state</th><th>log</th></tr></thead>
+<thead><tr><th>environment</th><th>branch (ref)</th><th>sha</th><th>by</th><th>at</th><th>state</th><th>memo</th><th>log</th></tr></thead>
 <tbody>
 ${tbody}
 </tbody>
